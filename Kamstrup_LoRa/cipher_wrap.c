@@ -69,10 +69,11 @@
 #include "gcm.h"
 #endif
 
+/*
 #if defined(MBEDTLS_CCM_C)
 #include "ccm.h"
 #endif
-
+*/
 #if defined(MBEDTLS_CIPHER_NULL_CIPHER)
 #include <string.h>
 #endif
@@ -104,7 +105,7 @@ static void gcm_ctx_free( void *ctx )
 }
 #endif /* MBEDTLS_GCM_C */
 
-#if defined(MBEDTLS_CCM_C)
+#if !defined(MBEDTLS_CCM_C)
 /* shared by all CCM ciphers */
 static void *ccm_ctx_alloc( void )
 {
@@ -581,7 +582,7 @@ static const mbedtls_cipher_info_t aes_256_gcm_info = {
 };
 #endif /* MBEDTLS_GCM_C */
 
-#if defined(MBEDTLS_CCM_C)
+#if !defined(MBEDTLS_CCM_C)
 static int ccm_aes_setkey_wrap( void *ctx, const unsigned char *key,
                                 unsigned int key_bitlen )
 {
@@ -2154,7 +2155,7 @@ const mbedtls_cipher_definition_t mbedtls_cipher_definitions[] =
     { MBEDTLS_CIPHER_AES_192_GCM,          &aes_192_gcm_info },
     { MBEDTLS_CIPHER_AES_256_GCM,          &aes_256_gcm_info },
 #endif
-#if defined(MBEDTLS_CCM_C)
+#if !defined(MBEDTLS_CCM_C)
     { MBEDTLS_CIPHER_AES_128_CCM,          &aes_128_ccm_info },
     { MBEDTLS_CIPHER_AES_192_CCM,          &aes_192_ccm_info },
     { MBEDTLS_CIPHER_AES_256_CCM,          &aes_256_ccm_info },

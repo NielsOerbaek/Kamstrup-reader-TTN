@@ -47,19 +47,19 @@
 #endif
 
 #if defined(MBEDTLS_CCM_C)
-#include "ccm.h"
+//#include "ccm.h"
 #endif
 
 #if defined(MBEDTLS_CHACHA20_C)
-#include "chacha20.h"
+//#include "chacha20.h"
 #endif
 
 #if defined(MBEDTLS_CMAC_C)
-#include "cmac.h"
+//#include "cmac.h"
 #endif
 
 #if defined(MBEDTLS_PLATFORM_C)
-#include "platform.h"
+//#include "platform.h"
 #else
 #define mbedtls_calloc calloc
 #define mbedtls_free   free
@@ -1118,7 +1118,7 @@ int mbedtls_cipher_auth_decrypt( mbedtls_cipher_context_t *ctx,
         return( ret );
     }
 #endif /* MBEDTLS_GCM_C */
-#if defined(MBEDTLS_CCM_C)
+#if !defined(MBEDTLS_CCM_C)
     if( MBEDTLS_MODE_CCM == ctx->cipher_info->mode )
     {
         int ret;
