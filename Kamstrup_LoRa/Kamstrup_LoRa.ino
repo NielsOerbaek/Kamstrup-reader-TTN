@@ -344,6 +344,7 @@ void do_send(osjob_t* j) {
       DEBUG_PRINTLN("Packet queued");  
     } else {
       DEBUG_PRINTLN("No valid frames.");
+      read_frame();
     }
   }
 }
