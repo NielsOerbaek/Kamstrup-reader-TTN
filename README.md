@@ -2,7 +2,7 @@
 
 __NOTE: This will probably only work for Radius customers in the greater Copenhagen area. You need to write to [kundesupport@radiuselnet.dk](mailto:kundesupport@radiuselnet.dk) to get your decryption keys__
 
-This sketch was made for a Heltec Lora 32 (V1), but it might work for other ESP32-based chips as well.
+This sketch was made for a Heltec Lora32 (V1), but it might work for other ESP32-based chips as well, like the TTGO Lora32.
 
 ### Hookup guide:
 
@@ -11,6 +11,13 @@ This sketch was made for a Heltec Lora 32 (V1), but it might work for other ESP3
 2. Connect pin: Heltec `G` pin <-> Kamstrup HAN slot top left pin
 2. Connect pin: Heltec `23` pin <-> Kamstrup HAN slot top middle pin
 3. Power the Heltec through USB charger
+
+If you want to power the board directly from the meter, using the little battery adapter that comes with board, make these connections:
+
+1. Kamstrup VCC (bottom left) -> Battery adapter Red wire
+2. Kamstrup Ground (top left) -> Battery adapter Black wire
+3. Kamstrup Ground (top left) -> Heltec `G` pin(Outer pin just next to the reset button)
+4. Kamstrup Data out (top middle) -> Heltec `23` ()
 
 
 ### History:
