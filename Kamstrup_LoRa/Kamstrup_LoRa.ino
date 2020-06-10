@@ -27,7 +27,7 @@ VectorView decryptedFrame(decryptedFrameBuffer, 0);
 MbusStreamParser streamParser(receiveBuffer, sizeof(receiveBuffer));
 mbedtls_gcm_context m_ctx;
 
-int8_t TX_INTERVAL = 120; // Time to wait between transmissions, not including TX windows
+int8_t TX_INTERVAL = 110; // Time to wait between transmissions, not including TX windows
 int16_t payload[3];
 /* Payload Format:
  * 0: Avg import in W
@@ -103,8 +103,8 @@ void read_frame() {
           DEBUG_PRINTLN("Frame complete");
           if (!decrypt(frame))
           {
-            DEBUG_PRINTLN("Decrypt failed, backoff 1s");
-            delay(1000);
+            DEBUG_PRINTLN("Decrypt failed, backoff 0.5s");
+            delay(500);
           }
           MeterData md = parseMbusFrame(decryptedFrame);
           if(md.activePowerPlusValid && md.activePowerMinusValid) {
@@ -133,8 +133,6 @@ void read_frame() {
 int32_t do_average(int32_t avg, int32_t val, int32_t cnt) {
   return (avg*(cnt-1)+val)/cnt;
 }
-
-
 
 void printHex(const unsigned char* data, const size_t length) {
   for (int i = 0; i < length; i++) {
@@ -335,6 +333,7 @@ void do_send(osjob_t* j) {
   // Check if there is not a current TX/RX job running
   if (LMIC.opmode & OP_TXRXPEND) {
     DEBUG_PRINTLN(F("OP_TXRXPEND, not sending"));
+    read_frame();
   } else {
     DEBUG_PRINTLN("Reading and decrypting...");
     read_frame();
