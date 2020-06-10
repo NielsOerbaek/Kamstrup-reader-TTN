@@ -96,34 +96,32 @@ void read_frame() {
   int32_t read_cnt = 0;
   int break_time = os_getTime() + sec2osticks(TX_INTERVAL);
   while(true) {
+    if(os_getTime() > break_time) {
+        DEBUG_PRINTLN("Timeout! Got "+String(read_cnt)+" frames.");
+        payload[0] = avg_im;
+        payload[1] = avg_ex;
+        payload[2] = read_cnt;
+        return;            
+      }
     while (Serial2.available() > 0) {
       if (streamParser.pushData(Serial2.read())) {
         VectorView frame = streamParser.getFrame();
         if (streamParser.getContentType() == MbusStreamParser::COMPLETE_FRAME) {
-          DEBUG_PRINTLN("Frame complete");
+          DEBUG_PRINTLN("Frame complete. Decrypting...");
           if (!decrypt(frame))
           {
-            DEBUG_PRINTLN("Decrypt failed, backoff 0.5s");
-            delay(500);
+            DEBUG_PRINTLN("Decrypt failed");
           }
           MeterData md = parseMbusFrame(decryptedFrame);
           if(md.activePowerPlusValid && md.activePowerMinusValid) {
             read_cnt++;
-            DEBUG_PRINTLN("Succesful read, cnt:"+String(read_cnt));
+            DEBUG_PRINTLN("Decrypt ok, cnt:"+String(read_cnt));
             avg_im = do_average(avg_im, md.activePowerPlus, read_cnt);
             avg_ex = do_average(avg_ex, md.activePowerMinus, read_cnt);
             // Update Display
             update_display(md.activePowerPlus, md.activePowerMinus, read_cnt);
           }
-          if(os_getTime() > break_time) {
-            DEBUG_PRINTLN("Timeout! Got "+String(read_cnt)+" frames.");
-            payload[0] = avg_im;
-            payload[1] = avg_ex;
-            payload[2] = read_cnt;
-            return;            
-          } else {
-            DEBUG_PRINTLN(String(osticks2ms(break_time - os_getTime())/1000) + "s until send");
-          }
+          DEBUG_PRINTLN(String(osticks2ms(break_time - os_getTime())/1000) + "s until send");
         }
       }
     }
@@ -333,17 +331,19 @@ void do_send(osjob_t* j) {
   // Check if there is not a current TX/RX job running
   if (LMIC.opmode & OP_TXRXPEND) {
     DEBUG_PRINTLN(F("OP_TXRXPEND, not sending"));
-    read_frame();
+    os_setTimedCallback(&sendjob, os_getTime(), do_send);
   } else {
-    DEBUG_PRINTLN("Reading and decrypting...");
+    DEBUG_PRINTLN("Listening for frame...");
     read_frame();
+    DEBUG_PRINTLN("Back to do send");
     // Prepare upstream data transmission at the next possible time.
     if(payload[2] > 0) {
+      DEBUG_PRINTLN("Starting send...");
       LMIC_setTxData2(1, (xref2u1_t)&payload, sizeof(payload), 0);
       DEBUG_PRINTLN("Packet queued");  
     } else {
       DEBUG_PRINTLN("No valid frames.");
-      read_frame();
+      os_setTimedCallback(&sendjob, os_getTime(), do_send);
     }
   }
 }
@@ -363,17 +363,18 @@ void update_display() {
 }
 
 void update_display(String msg) {
-  oled.setTextXY(5,0);       
+  oled.setTextXY(4,0);       
   oled.putString("Msg:");
-  oled.setTextXY(6,0); 
+  oled.setTextXY(5,0); 
   oled.putString("                                "); // Clearing previous characters
-  oled.setTextXY(6,0); 
+  oled.setTextXY(5,0); 
   oled.putString(msg);
 }
 
 void reset_payload() {
   // Reset the payload values
-  payload[0] = 0;
-  payload[1] = 0;
   payload[2] = 0;
+  update_display();
+  payload[1] = 0;
+  payload[0] = 0;
 }
