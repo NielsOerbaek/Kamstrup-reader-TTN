@@ -6,6 +6,7 @@
 
 #include "gcm.h"
 #include "mbusparser.h"
+#include "dasya_logo.h"
 #include "secrets.h" // <-- create this file using "secrets.h.TEMPLATE"
 
 #define DEBUG_BEGIN Serial.begin(115200);
@@ -28,6 +29,7 @@ MbusStreamParser streamParser(receiveBuffer, sizeof(receiveBuffer));
 mbedtls_gcm_context m_ctx;
 
 int8_t TX_INTERVAL = 110; // Time to wait between transmissions, not including TX windows
+//int8_t TX_INTERVAL = 20; // Time to wait between transmissions, not including TX windows
 int16_t payload[3];
 /* Payload Format:
  * 0: Avg import in W
@@ -71,6 +73,12 @@ void setup() {
   oled.init();                      // Initialze SSD1306 OLED display
   oled.clearDisplay();
 
+  // Show DASYA Logo. Not really needed for anything, but looks nice.
+  draw_logo("Kamstrup <-> TTN");
+  delay(3000);
+  oled.clearDisplay();
+  
+
   DEBUG_PRINTLN("Starting LMIC")
   // LMIC init
   os_init();
@@ -95,6 +103,7 @@ void read_frame() {
   int32_t avg_ex = 0;
   int32_t read_cnt = 0;
   int break_time = os_getTime() + sec2osticks(TX_INTERVAL);
+  int time_left;
   while(true) {
     if(os_getTime() > break_time) {
         DEBUG_PRINTLN("Timeout! Got "+String(read_cnt)+" frames.");
@@ -118,10 +127,13 @@ void read_frame() {
             DEBUG_PRINTLN("Decrypt ok, cnt:"+String(read_cnt));
             avg_im = do_average(avg_im, md.activePowerPlus, read_cnt);
             avg_ex = do_average(avg_ex, md.activePowerMinus, read_cnt);
-            // Update Display
-            update_display(md.activePowerPlus, md.activePowerMinus, read_cnt);
+            // Update display
+            update_display(md.activePowerPlus, md.activePowerMinus, read_cnt, time_left);
+          } else {
+            // Update display
+            update_display(read_cnt, time_left);
           }
-          DEBUG_PRINTLN(String(osticks2ms(break_time - os_getTime())/1000) + "s until send");
+          time_left = osticks2ms(break_time - os_getTime())/1000;
         }
       }
     }
@@ -348,27 +360,38 @@ void do_send(osjob_t* j) {
   }
 }
 
-void update_display(int im, int ex, int cnt) {
+void update_display(int im, int ex, int cnt, int time_left) {
   oled.setTextXY(0,0);              // Set cursor position, start of line 0
   oled.putString("Import: "+String(im)+" W  ");
   oled.setTextXY(1,0);              // Set cursor position, start of line 1
   oled.putString("Export: "+String(ex)+" W  ");
   oled.setTextXY(2,0);              // Set cursor position, start of line 1
-  oled.putString("Reads: "+String(cnt)+"    ");
-  // TODO: It could be cool to draw a little graph with a bitmap.
+  oled.putString("Rds: "+String(cnt)+", T: "+String(time_left)+"s ");
+}
+
+void update_display(int cnt, int time_left) {
+  oled.setTextXY(2,0);              // Set cursor position, start of line 1
+  oled.putString("Rds: "+String(cnt)+", T: "+String(time_left)+"s ");
 }
 
 void update_display() {
-  update_display(payload[0],payload[1],payload[2]);
+  update_display(payload[0],payload[1],payload[2], -1);
 }
 
 void update_display(String msg) {
   oled.setTextXY(4,0);       
   oled.putString("Msg:");
-  oled.setTextXY(5,0); 
-  oled.putString("                                "); // Clearing previous characters
-  oled.setTextXY(5,0); 
-  oled.putString(msg);
+  int line = 5;
+  int curs = 0;
+  while(line < 8) {
+    oled.setTextXY(line,0);
+    oled.putString("                "); // First clear the line
+    oled.setTextXY(line,0); 
+    oled.putString(msg.substring(curs,curs+16));
+    msg = msg.substring(curs);
+    curs += 16;
+    line++;
+  }
 }
 
 void reset_payload() {
