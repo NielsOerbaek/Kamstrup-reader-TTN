@@ -30,12 +30,18 @@ mbedtls_gcm_context m_ctx;
 
 int8_t TX_INTERVAL = 110; // Time to wait between transmissions, not including TX windows
 //int8_t TX_INTERVAL = 20; // Time to wait between transmissions, not including TX windows
-int16_t payload[3];
-/* Payload Format:
+
+/* Payload Format: 7 2-byte integers: 14 bytes:
  * 0: Avg import in W
- * 1: Avg export in W
- * 2: Number of valid frames this is based on
+ * 1: Min import in W
+ * 2: Max import in W
+ * 3: Avg export in W
+ * 4: Min export in W
+ * 5: Max export in W
+ * 6: Number of valid frames this is based on
  */
+
+int16_t payload[7];
 
 
 /* Heltec specifics */
@@ -99,17 +105,12 @@ void loop() {
 
 void read_frame() {
   reset_payload();
-  int32_t avg_im = 0;
-  int32_t avg_ex = 0;
   int32_t read_cnt = 0;
   int break_time = os_getTime() + sec2osticks(TX_INTERVAL);
   int time_left;
   while(true) {
     if(os_getTime() > break_time) {
         DEBUG_PRINTLN("Timeout! Got "+String(read_cnt)+" frames.");
-        payload[0] = avg_im;
-        payload[1] = avg_ex;
-        payload[2] = read_cnt;
         return;            
       }
     while (Serial2.available() > 0) {
@@ -124,9 +125,23 @@ void read_frame() {
           MeterData md = parseMbusFrame(decryptedFrame);
           if(md.activePowerPlusValid && md.activePowerMinusValid) {
             read_cnt++;
+            payload[6] = read_cnt;
             DEBUG_PRINTLN("Decrypt ok, cnt:"+String(read_cnt));
-            avg_im = do_average(avg_im, md.activePowerPlus, read_cnt);
-            avg_ex = do_average(avg_ex, md.activePowerMinus, read_cnt);
+            payload[0] = do_average(payload[0], md.activePowerPlus, read_cnt);
+            payload[3] = do_average(payload[3], md.activePowerMinus, read_cnt);
+            
+            if(payload[1] == -1) { payload[1] = md.activePowerPlus; }
+            else { payload[1] = min((int) payload[1], (int) md.activePowerPlus); }
+            
+            if(payload[2] == -1) { payload[2] = md.activePowerPlus; }
+            else { payload[2] = max((int) payload[2], (int) md.activePowerPlus); }
+            
+            if(payload[4] == -1) { payload[4] = md.activePowerMinus; }
+            else { payload[4] = min((int) payload[4], (int) md.activePowerMinus); }
+            
+            if(payload[5] == -1) { payload[5] = md.activePowerMinus; }
+            else { payload[5] = max((int) payload[5], (int) md.activePowerMinus); }
+            
             // Update display
             update_display(md.activePowerPlus, md.activePowerMinus, read_cnt, time_left);
           } else {
@@ -375,10 +390,12 @@ void update_display(int cnt, int time_left) {
 }
 
 void update_display() {
-  update_display(payload[0],payload[1],payload[2], -1);
+  update_display(payload[0],payload[3],payload[6], -1);
 }
 
 void update_display(String msg) {
+  oled.setTextXY(3,0);
+  oled.putString("                "); 
   oled.setTextXY(4,0);       
   oled.putString("Msg:");
   int line = 5;
@@ -396,8 +413,12 @@ void update_display(String msg) {
 
 void reset_payload() {
   // Reset the payload values
-  payload[2] = 0;
+  payload[6] = 0;
   update_display();
-  payload[1] = 0;
   payload[0] = 0;
+  payload[1] = -1;
+  payload[2] = -1;
+  payload[3] = 0;
+  payload[4] = -1;
+  payload[5] = -1;
 }
